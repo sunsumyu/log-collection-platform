@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold mb-6">🔍 Log Collection Platform Test</h1>
+        
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="text-sm font-medium text-gray-500">Total Browsers</h3>
+                <p id="total-browsers" class="text-2xl font-bold">Loading...</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="text-sm font-medium text-gray-500">Total Logs</h3>
+                <p id="total-logs" class="text-2xl font-bold">Loading...</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="text-sm font-medium text-gray-500">Errors</h3>
+                <p id="total-errors" class="text-2xl font-bold text-red-600">Loading...</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="text-sm font-medium text-gray-500">Status</h3>
+                <p id="status" class="text-2xl font-bold text-green-600">Loading...</p>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+            <h2 class="text-xl font-bold mb-4">Browser Windows</h2>
+            <div id="browser-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Browser windows will be inserted here -->
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+            <div class="flex items-center mb-4">
+                <label for="mainthread-toggle" class="mr-2 font-medium">显示 MainThread 消息</label>
+                <input type="checkbox" id="mainthread-toggle" checked class="mr-4">
+            </div>
+            <h2 class="text-xl font-bold mb-4">日志显示区</h2>
+            <div id="search-results" class="text-sm font-mono bg-gray-900 text-gray-100 rounded p-4 min-h-[200px]">
+                <!-- 日志信息将在这里显示 -->
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-bold mb-4">Debug Info</h2>
+            <div id="debug-info" class="text-sm text-gray-600">
+                <!-- Debug information will be shown here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Test dashboard script starting...');
+        
+        function updateDebug(message) {
+            const debugEl = document.getElementById('debug-info');
+            if (debugEl) {
+                debugEl.innerHTML += '<p>' + new Date().toLocaleTimeString() + ': ' + message + '</p>';
+            }
+        }
+
+        async function loadData() {
+            try {
+                updateDebug('Starting data load...');
+                
+                // Test browsers API
+                updateDebug('Fetching browsers...');
+                const browsersResponse = await fetch('/api/logs/browsers');
+                const browsersData = await browsersResponse.json();
+                updateDebug('Browsers API response: ' + JSON.stringify(browsersData));
+                
+                const browserIds = browsersData.browserIds || [];
+                document.getElementById('total-browsers').textContent = browserIds.length;
+                
+                let totalLogs = 0;
+                let totalErrors = 0;
+                const browserGrid = document.getElementById('browser-grid');
+                browserGrid.innerHTML = '';
+                
+                // Test each browser stats
+                for (const browserId of browserIds) {
+                    updateDebug('Fetching stats for browser ' + browserId + '...');
+                    const statsResponse = await fetch('/api/logs/browser/' + browserId + '/stats');
+                    const stats = await statsResponse.json();
+                    updateDebug('Browser ' + browserId + ' stats: ' + JSON.stringify(stats));
+                    
+                    totalLogs += stats.totalLogs || 0;
+                    totalErrors += stats.errorCount || 0;
+                    
+                    // Create browser window
+                    const browserDiv = document.createElement('div');
+                    browserDiv.className = 'bg-gray-50 p-4 rounded border';
+                    browserDiv.innerHTML = `
+                        <h3 class="font-bold mb-2">Browser ${browserId}</h3>
+                        <p>Total Logs: ${stats.totalLogs || 0}</p>
+                        <p>Errors: <span class="text-red-600">${stats.errorCount || 0}</span></p>
+                        <p>Warnings: <span class="text-yellow-600">${stats.warnCount || 0}</span></p>
+                        <p>Info: <span class="text-blue-600">${stats.infoCount || 0}</span></p>
+                        <p>Debug: <span class="text-gray-600">${stats.debugCount || 0}</span></p>
+                    `;
+                    browserGrid.appendChild(browserDiv);
+                }
+                
+                document.getElementById('total-logs').textContent = totalLogs;
+                document.getElementById('total-errors').textContent = totalErrors;
+                document.getElementById('status').textContent = 'Connected';
+                
+                updateDebug('Data load completed successfully!');
+                
+            } catch (error) {
+                updateDebug('Error loading data: ' + error.message);
+                console.error('Error:', error);
+                document.getElementById('status').textContent = 'Error';
+                document.getElementById('status').className = 'text-2xl font-bold text-red-600';
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDebug('DOM loaded, initializing...');
+            loadData();
+        });
+        
+        updateDebug('Script loaded');
+    </script>
+</body>
+</html>

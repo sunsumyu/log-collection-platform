@@ -1,0 +1,50 @@
+{
+  "name": "log-collection-platform",
+  "version": "1.0.0",
+  "description": "Multi-browser log collection and filtering platform using Fluentd, MongoDB, and Elasticsearch",
+  "main": "dist/app.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "dev": "nodemon src/app.ts",
+    "setup": "node dist/scripts/setup.js",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "test": "jest",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "logging",
+    "fluentd",
+    "mongodb",
+    "elasticsearch",
+    "kibana",
+    "browser-logs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.4.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "mongodb": "^5.7.0",
+    "pino": "^8.15.0",
+    "pino-mongodb": "^1.0.0",
+    "pino-pretty": "^10.2.0",
+    "socket.io": "^4.7.2",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.13",
+    "@types/express": "^4.17.17",
+    "@types/jest": "^29.5.4",
+    "@types/node": "^20.5.0",
+    "@types/pino": "^7.0.5",
+    "@types/pino-pretty": "^4.7.1",
+    "jest": "^29.6.2",
+    "nodemon": "^3.0.1",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
+  }
+}

@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Log Collection Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .log-entry {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .log-timestamp {
+            color: #6b7280;
+            font-weight: 500;
+        }
+        .log-level-error {
+            background-color: #fef2f2;
+            border-left: 4px solid #ef4444;
+            color: #dc2626;
+        }
+        .log-level-warn {
+            background-color: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            color: #d97706;
+        }
+        .log-level-info {
+            background-color: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            color: #2563eb;
+        }
+        .log-level-debug {
+            background-color: #f9fafb;
+            border-left: 4px solid #6b7280;
+            color: #4b5563;
+        }
+        .mainthread-indicator {
+            background: linear-gradient(45deg, #8b5cf6, #a855f7);
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .browser-indicator {
+            background: linear-gradient(45deg, #06b6d4, #0891b2);
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #3b82f6;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">🔍 Enhanced Log Collection Platform</h1>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm font-medium">Show MainThread:</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mainthread-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div id="status-indicator" class="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span id="status-text" class="text-sm font-medium">Connected</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Overview Stats -->
+        <div class="grid grid-cols-5 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="text-sm font-medium text-gray-500">Total Browsers</h3>
+                <p id="total-browsers" class="text-2xl font-bold">0</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="text-sm font-medium text-gray-500">Total Logs</h3>
+                <p id="total-logs" class="text-2xl font-bold">0</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="text-sm font-medium text-gray-500">Errors</h3>
+                <p id="total-errors" class="text-2xl font-bold text-red-600">0</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="text-sm font-medium text-gray-500">MainThread Logs</h3>
+                <p id="mainthread-logs" class="text-2xl font-bold text-purple-600">0</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="text-sm font-medium text-gray-500">Active Sessions</h3>
+                <p id="active-sessions" class="text-2xl font-bold">0</p>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+            <div class="flex flex-wrap items-center gap-4">
+                <div class="flex items-center space-x-2">
+                    <input type="text" id="search-input" placeholder="Search logs..." 
+                           class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button id="search-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
+                        Search
+                    </button>
+                </div>
+                <select id="browser-filter" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">All Browsers</option>
+                </select>
+                <button id="refresh-btn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md">
+                    Refresh
+                </button>
+                <button id="clear-logs-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md">
+                    Clear All Logs
+                </button>
+                <button id="mainthread-only-btn" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md">
+                    MainThread Only
+                </button>
+            </div>
+        </div>
+
+        <!-- Browser Windows -->
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+            <h2 class="text-xl font-bold mb-4">Browser Windows</h2>
+            <div id="browser-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Browser windows will be inserted here -->
+            </div>
+        </div>
+
+        <!-- MainThread Window -->
+        <div id="mainthread-window" class="bg-white p-6 rounded-lg shadow mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-purple-600">🧵 MainThread Logs</h2>
+                <div class="flex items-center space-x-2">
+                    <span id="mainthread-count" class="text-sm text-gray-500">0 logs</span>
+                    <button id="refresh-mainthread-btn" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-sm">
+                        Refresh
+                    </button>
+                </div>
+            </div>
+            <div id="mainthread-logs-container" class="max-h-96 overflow-y-auto border border-gray-200 rounded p-4">
+                <!-- MainThread logs will be displayed here -->
+            </div>
+        </div>
+
+        <!-- Log Display -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-bold mb-4">Log Entries</h2>
+            <div id="search-results" class="max-h-96 overflow-y-auto space-y-2">
+                <p class="text-gray-500">No logs to display. Use search or select a browser to view logs.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class EnhancedLogDashboard {
+            constructor() {
+                this.browsers = new Map();
+                this.showMainThread = true;
+                this.mainThreadLogs = [];
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.loadInitialData();
+                this.startPeriodicUpdates();
+                this.updateConnectionStatus(true);
+            }
+
+            setupEventListeners() {
+                // Existing controls
+                document.getElementById('refresh-btn')?.addEventListener('click', () => this.loadInitialData());
+                document.getElementById('clear-logs-btn')?.addEventListener('click', () => this.clearAllLogs());
+                document.getElementById('search-btn')?.addEventListener('click', () => this.performSearch());
+                document.getElementById('search-input')?.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.performSearch();
+                });
+
+                // MainThread controls
+                document.getElementById('mainthread-toggle')?.addEventListener('change', (e) => {
+                    this.showMainThread = e.target.checked;
+                    this.toggleMainThreadWindow();
+                });
+                
+                document.getElementById('mainthread-only-btn')?.addEventListener('click', () => {
+                    this.showMainThreadOnly();
+                });
+                
+                document.getElementById('refresh-mainthread-btn')?.addEventListener('click', () => {
+                    this.loadMainThreadLogs();
+                });
+            }
+
+            async loadInitialData() {
+                try {
+                    console.log('Loading initial data...');
+                    
+                    // Get browser IDs
+                    const browsersResponse = await fetch('/api/logs/browsers');
+                    const browsersData = await browsersResponse.json();
+                    const browserIds = browsersData.browserIds || [];
+                    
+                    // Get stats for each browser
+                    const browsers = [];
+                    let totalLogs = 0;
+                    let totalErrors = 0;
+                    
+                    for (const browserId of browserIds) {
+                        try {
+                            const statsResponse = await fetch(`/api/logs/browser/${browserId}/stats`);
+                            const stats = await statsResponse.json();
+                            
+                            browsers.push({
+                                browserId: browserId,
+                                total: stats.totalLogs || 0,
+                                byLevel: {
+                                    error: { count: stats.errorCount || 0 },
+                                    warn: { count: stats.warnCount || 0 },
+                                    info: { count: stats.infoCount || 0 },
+                                    debug: { count: stats.debugCount || 0 }
+                                }
+                            });
+                            
+                            totalLogs += stats.totalLogs || 0;
+                            totalErrors += stats.errorCount || 0;
+                        } catch (error) {
+                            console.error(`Error loading stats for browser ${browserId}:`, error);
+                        }
+                    }
+                    
+                    // Load MainThread logs
+                    await this.loadMainThreadLogs();
+                    
+                    const overview = {
+                        totalBrowsers: browserIds.length,
+                        browsers: browsers,
+                        totalLogs: totalLogs,
+                        errorCount: totalErrors,
+                        mainThreadCount: this.mainThreadLogs.length
+                    };
+                    
+                    this.updateOverviewStats(overview);
+                    this.renderBrowserWindows(overview.browsers);
+                    this.updateBrowserFilter(overview.browsers);
+                    
+                } catch (error) {
+                    console.error('Error loading initial data:', error);
+                    this.showError('Failed to load dashboard data');
+                }
+            }
+
+            async loadMainThreadLogs() {
+                try {
+                    // Simulate MainThread logs by getting all logs and filtering client-side
+                    const response = await fetch('/api/logs?limit=100');
+                    const data = await response.json();
+                    const allLogs = data.logs || [];
+                    
+                    // Filter for MainThread logs (logs without [Thread-X][Y] pattern)
+                    this.mainThreadLogs = allLogs.filter(log => {
+                        const message = log.message || log.msg || '';
+                        return !message.match(/\[Thread-\d+\]\[\d+\]/);
+                    });
+                    
+                    this.renderMainThreadLogs();
+                    this.updateMainThreadCount();
+                    
+                } catch (error) {
+                    console.error('Error loading MainThread logs:', error);
+                }
+            }
+
+            renderMainThreadLogs() {
+                const container = document.getElementById('mainthread-logs-container');
+                if (!container) return;
+
+                if (this.mainThreadLogs.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500">No MainThread logs found</p>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                this.mainThreadLogs.forEach(log => {
+                    const logDiv = this.createFormattedLogEntry(log, true);
+                    container.appendChild(logDiv);
+                });
+            }
+
+            createFormattedLogEntry(log, isMainThread = false) {
+                const logDiv = document.createElement('div');
+                logDiv.className = `log-entry p-3 mb-2 rounded ${this.getLogLevelClass(log.level)}`;
+                
+                const timestamp = new Date(log.timestamp || log['@timestamp'] || Date.now()).toLocaleString();
+                const level = (log.level || 'info').toUpperCase();
+                const message = this.formatLogMessage(log.message || log.msg || '');
+                
+                logDiv.innerHTML = `
+                    <div class="flex items-start space-x-2">
+                        <span class="log-timestamp">${timestamp}</span>
+                        <span class="px-2 py-1 rounded text-xs font-medium ${this.getLevelBadgeClass(log.level)}">${level}</span>
+                        ${isMainThread ? 
+                            '<span class="mainthread-indicator">MAIN</span>' : 
+                            log.browserId ? `<span class="browser-indicator">BR-${log.browserId}</span>` : ''
+                        }
+                    </div>
+                    <div class="mt-2 text-sm">
+                        <pre class="whitespace-pre-wrap font-mono">${message}</pre>
+                    </div>
+                `;
+                
+                return logDiv;
+            }
+
+            formatLogMessage(message) {
+                // Remove ANSI color codes
+                let formatted = message.replace(/\x1b\[[0-9;]*m/g, '');
+                
+                // Format JSON if possible
+                try {
+                    if (formatted.trim().startsWith('{') && formatted.trim().endsWith('}')) {
+                        const parsed = JSON.parse(formatted);
+                        formatted = JSON.stringify(parsed, null, 2);
+                    }
+                } catch (e) {
+                    // Not JSON, keep as is
+                }
+                
+                return formatted;
+            }
+
+            getLogLevelClass(level) {
+                switch ((level || 'info').toLowerCase()) {
+                    case 'error': return 'log-level-error';
+                    case 'warn': case 'warning': return 'log-level-warn';
+                    case 'info': return 'log-level-info';
+                    case 'debug': return 'log-level-debug';
+                    default: return 'log-level-info';
+                }
+            }
+
+            getLevelBadgeClass(level) {
+                switch ((level || 'info').toLowerCase()) {
+                    case 'error': return 'bg-red-100 text-red-800';
+                    case 'warn': case 'warning': return 'bg-yellow-100 text-yellow-800';
+                    case 'info': return 'bg-blue-100 text-blue-800';
+                    case 'debug': return 'bg-gray-100 text-gray-800';
+                    default: return 'bg-blue-100 text-blue-800';
+                }
+            }
+
+            updateOverviewStats(overview) {
+                document.getElementById('total-browsers').textContent = overview.totalBrowsers?.toString() || '0';
+                document.getElementById('total-logs').textContent = overview.totalLogs?.toString() || '0';
+                document.getElementById('total-errors').textContent = overview.errorCount?.toString() || '0';
+                document.getElementById('mainthread-logs').textContent = overview.mainThreadCount?.toString() || '0';
+                document.getElementById('active-sessions').textContent = overview.totalBrowsers?.toString() || '0';
+            }
+
+            updateMainThreadCount() {
+                document.getElementById('mainthread-count').textContent = `${this.mainThreadLogs.length} logs`;
+            }
+
+            toggleMainThreadWindow() {
+                const window = document.getElementById('mainthread-window');
+                if (window) {
+                    window.style.display = this.showMainThread ? 'block' : 'none';
+                }
+            }
+
+            async showMainThreadOnly() {
+                const resultsContainer = document.getElementById('search-results');
+                if (!resultsContainer) return;
+
+                resultsContainer.innerHTML = '';
+                
+                if (this.mainThreadLogs.length === 0) {
+                    resultsContainer.innerHTML = '<p class="text-gray-500">No MainThread logs found</p>';
+                    return;
+                }
+
+                this.mainThreadLogs.forEach(log => {
+                    const logDiv = this.createFormattedLogEntry(log, true);
+                    resultsContainer.appendChild(logDiv);
+                });
+            }
+
+            renderBrowserWindows(browsers) {
+                const gridContainer = document.getElementById('browser-grid');
+                if (!gridContainer) return;
+
+                gridContainer.innerHTML = '';
+                
+                browsers.forEach(browser => {
+                    const windowElement = this.createBrowserWindow(browser);
+                    gridContainer.appendChild(windowElement);
+                });
+            }
+
+            createBrowserWindow(browser) {
+                const windowDiv = document.createElement('div');
+                windowDiv.className = 'browser-window bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500';
+                
+                windowDiv.innerHTML = `
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Browser ${browser.browserId}</h3>
+                        <span class="text-sm text-gray-500">${browser.total} logs</span>
+                    </div>
+                    <div class="space-y-2 mb-4">
+                        <div class="flex justify-between">
+                            <span>Errors:</span>
+                            <span class="text-red-600 font-semibold">${browser.byLevel.error?.count || 0}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Warnings:</span>
+                            <span class="text-yellow-600 font-semibold">${browser.byLevel.warn?.count || 0}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Info:</span>
+                            <span class="text-blue-600 font-semibold">${browser.byLevel.info?.count || 0}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Debug:</span>
+                            <span class="text-gray-600 font-semibold">${browser.byLevel.debug?.count || 0}</span>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2 mb-4">
+                        <button class="view-logs-btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm" data-browser-id="${browser.browserId}">
+                            View Logs
+                        </button>
+                        <button class="view-with-mainthread-btn bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-sm" data-browser-id="${browser.browserId}">
+                            + MainThread
+                        </button>
+                        <button class="clear-browser-logs-btn bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm" data-browser-id="${browser.browserId}">
+                            Clear
+                        </button>
+                    </div>
+                `;
+                
+                // Add event listeners
+                windowDiv.querySelector('.view-logs-btn')?.addEventListener('click', () => {
+                    this.viewBrowserLogs(browser.browserId, false);
+                });
+                
+                windowDiv.querySelector('.view-with-mainthread-btn')?.addEventListener('click', () => {
+                    this.viewBrowserLogs(browser.browserId, true);
+                });
+                
+                windowDiv.querySelector('.clear-browser-logs-btn')?.addEventListener('click', () => {
+                    this.clearBrowserLogs(browser.browserId);
+                });
+                
+                return windowDiv;
+            }
+
+            updateBrowserFilter(browsers) {
+                const filter = document.getElementById('browser-filter');
+                if (!filter) return;
+
+                filter.innerHTML = '<option value="">All Browsers</option>';
+                
+                browsers.forEach(browser => {
+                    const option = document.createElement('option');
+                    option.value = browser.browserId;
+                    option.textContent = `Browser ${browser.browserId}`;
+                    filter.appendChild(option);
+                });
+            }
+
+            async viewBrowserLogs(browserId, includeMainThread = false) {
+                try {
+                    const response = await fetch(`/api/logs/browser/${browserId}?limit=50`);
+                    const data = await response.json();
+                    let logs = data.logs || [];
+                    
+                    // Add MainThread logs if requested
+                    if (includeMainThread) {
+                        logs = [...logs, ...this.mainThreadLogs];
+                        logs.sort((a, b) => {
+                            const timeA = new Date(a.timestamp || a['@timestamp'] || 0).getTime();
+                            const timeB = new Date(b.timestamp || b['@timestamp'] || 0).getTime();
+                            return timeB - timeA;
+                        });
+                    }
+                    
+                    this.displayFormattedLogs(logs, browserId, includeMainThread);
+                    this.showSuccess(`Showing logs for Browser ${browserId}${includeMainThread ? ' + MainThread' : ''}`);
+                } catch (error) {
+                    console.error('Error viewing browser logs:', error);
+                    this.showError('Failed to load browser logs');
+                }
+            }
+
+            displayFormattedLogs(logs, browserId = null, includeMainThread = false) {
+                const resultsContainer = document.getElementById('search-results');
+                if (!resultsContainer) return;
+
+                resultsContainer.innerHTML = '';
+                
+                if (!logs || logs.length === 0) {
+                    resultsContainer.innerHTML = '<p class="text-gray-500">No logs found</p>';
+                    return;
+                }
+
+                logs.forEach(log => {
+                    // Determine if this is a MainThread log
+                    const message = log.message || log.msg || '';
+                    const isMainThread = !message.match(/\[Thread-\d+\]\[\d+\]/);
+                    
+                    // Extract browser ID from message if available
+                    const browserIdMatch = message.match(/\[Thread-\d+\]\[(\d+)\]/);
+                    if (browserIdMatch) {
+                        log.browserId = browserIdMatch[1];
+                    }
+                    
+                    const logDiv = this.createFormattedLogEntry(log, isMainThread);
+                    resultsContainer.appendChild(logDiv);
+                });
+            }
+
+            async performSearch() {
+                const searchInput = document.getElementById('search-input');
+                const browserFilter = document.getElementById('browser-filter');
+                const query = searchInput?.value.trim();
+                const selectedBrowser = browserFilter?.value;
+                
+                if (!query && !selectedBrowser) {
+                    this.loadInitialData();
+                    return;
+                }
+
+                try {
+                    let url = '/api/logs';
+                    const params = new URLSearchParams();
+                    
+                    if (selectedBrowser) {
+                        url = `/api/logs/browser/${selectedBrowser}`;
+                        params.append('limit', '50');
+                    } else if (query) {
+                        url = '/api/logs/search';
+                        params.append('q', query);
+                    }
+                    
+                    const fullUrl = params.toString() ? `${url}?${params.toString()}` : url;
+                    const response = await fetch(fullUrl);
+                    const data = await response.json();
+                    
+                    const results = data.logs || data.data || data;
+                    this.displayFormattedLogs(results);
+                } catch (error) {
+                    console.error('Search error:', error);
+                    this.showError('Search failed');
+                }
+            }
+
+            async clearBrowserLogs(browserId) {
+                if (!confirm(`Are you sure you want to clear logs for Browser ${browserId}?`)) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/logs?browserId=${browserId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        this.loadInitialData();
+                        this.showSuccess(`Logs cleared for Browser ${browserId}`);
+                    } else {
+                        this.showError('Failed to clear browser logs');
+                    }
+                } catch (error) {
+                    console.error('Error clearing browser logs:', error);
+                    this.showError('Failed to clear browser logs');
+                }
+            }
+
+            async clearAllLogs() {
+                if (!confirm('Are you sure you want to clear all logs?')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/logs', {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        this.loadInitialData();
+                        this.showSuccess('All logs cleared');
+                    } else {
+                        this.showError('Failed to clear logs');
+                    }
+                } catch (error) {
+                    console.error('Clear logs error:', error);
+                    this.showError('Failed to clear logs');
+                }
+            }
+
+            updateConnectionStatus(connected) {
+                const statusIndicator = document.getElementById('status-indicator');
+                const statusText = document.getElementById('status-text');
+                
+                if (statusIndicator) {
+                    statusIndicator.className = connected ? 'w-3 h-3 rounded-full bg-green-500' : 'w-3 h-3 rounded-full bg-red-500';
+                }
+                
+                if (statusText) {
+                    statusText.textContent = connected ? 'Connected' : 'Disconnected';
+                }
+            }
+
+            showError(message) {
+                this.showNotification(message, 'error');
+            }
+
+            showSuccess(message) {
+                this.showNotification(message, 'success');
+            }
+
+            showNotification(message, type) {
+                const notification = document.createElement('div');
+                const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+                notification.className = `fixed top-4 right-4 ${bgColor} text-white px-4 py-2 rounded shadow-lg z-50`;
+                notification.textContent = message;
+
+                document.body.appendChild(notification);
+
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            }
+
+            startPeriodicUpdates() {
+                setInterval(() => {
+                    this.loadInitialData();
+                }, 30000); // Update every 30 seconds
+            }
+        }
+
+        // Initialize enhanced dashboard when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Initializing Enhanced Log Dashboard...');
+            new EnhancedLogDashboard();
+        });
+    </script>
+</body>
+</html>

@@ -37,11 +37,21 @@
         </div>
 
         <div class="bg-white p-6 rounded-lg shadow mb-6">
+            <h2 class="text-xl font-bold mb-4">🔍 Global Search</h2>
+            <div class="flex space-x-4 mb-4">
+                <input type="text" id="search-input" placeholder="Search logs..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md">
+                <select id="browser-filter" class="px-3 py-2 border border-gray-300 rounded-md">
+                    <option value="">All Browsers</option>
+                </select>
+                <button id="search-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Search</button>
+                <button id="refresh-btn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md">Refresh</button>
+                <button id="clear-logs-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md">Clear</button>
+            </div>
             <div class="flex items-center mb-4">
                 <label for="mainthread-toggle" class="mr-2 font-medium">显示 MainThread 消息</label>
                 <input type="checkbox" id="mainthread-toggle" checked class="mr-4">
             </div>
-            <h2 class="text-xl font-bold mb-4">日志显示区</h2>
+            <h3 class="text-lg font-bold mb-2">日志显示区</h3>
             <div id="search-results" class="text-sm font-mono bg-gray-900 text-gray-100 rounded p-4 min-h-[200px]">
                 <!-- 日志信息将在这里显示 -->
             </div>
@@ -55,79 +65,7 @@
         </div>
     </div>
 
-    <script>
-        console.log('Test dashboard script starting...');
-        
-        function updateDebug(message) {
-            const debugEl = document.getElementById('debug-info');
-            if (debugEl) {
-                debugEl.innerHTML += '<p>' + new Date().toLocaleTimeString() + ': ' + message + '</p>';
-            }
-        }
-
-        async function loadData() {
-            try {
-                updateDebug('Starting data load...');
-                
-                // Test browsers API
-                updateDebug('Fetching browsers...');
-                const browsersResponse = await fetch('/api/logs/browsers');
-                const browsersData = await browsersResponse.json();
-                updateDebug('Browsers API response: ' + JSON.stringify(browsersData));
-                
-                const browserIds = browsersData.browserIds || [];
-                document.getElementById('total-browsers').textContent = browserIds.length;
-                
-                let totalLogs = 0;
-                let totalErrors = 0;
-                const browserGrid = document.getElementById('browser-grid');
-                browserGrid.innerHTML = '';
-                
-                // Test each browser stats
-                for (const browserId of browserIds) {
-                    updateDebug('Fetching stats for browser ' + browserId + '...');
-                    const statsResponse = await fetch('/api/logs/browser/' + browserId + '/stats');
-                    const stats = await statsResponse.json();
-                    updateDebug('Browser ' + browserId + ' stats: ' + JSON.stringify(stats));
-                    
-                    totalLogs += stats.totalLogs || 0;
-                    totalErrors += stats.errorCount || 0;
-                    
-                    // Create browser window
-                    const browserDiv = document.createElement('div');
-                    browserDiv.className = 'bg-gray-50 p-4 rounded border';
-                    browserDiv.innerHTML = `
-                        <h3 class="font-bold mb-2">Browser ${browserId}</h3>
-                        <p>Total Logs: ${stats.totalLogs || 0}</p>
-                        <p>Errors: <span class="text-red-600">${stats.errorCount || 0}</span></p>
-                        <p>Warnings: <span class="text-yellow-600">${stats.warnCount || 0}</span></p>
-                        <p>Info: <span class="text-blue-600">${stats.infoCount || 0}</span></p>
-                        <p>Debug: <span class="text-gray-600">${stats.debugCount || 0}</span></p>
-                    `;
-                    browserGrid.appendChild(browserDiv);
-                }
-                
-                document.getElementById('total-logs').textContent = totalLogs;
-                document.getElementById('total-errors').textContent = totalErrors;
-                document.getElementById('status').textContent = 'Connected';
-                
-                updateDebug('Data load completed successfully!');
-                
-            } catch (error) {
-                updateDebug('Error loading data: ' + error.message);
-                console.error('Error:', error);
-                document.getElementById('status').textContent = 'Error';
-                document.getElementById('status').className = 'text-2xl font-bold text-red-600';
-            }
-        }
-
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            updateDebug('DOM loaded, initializing...');
-            loadData();
-        });
-        
-        updateDebug('Script loaded');
-    </script>
+    <!-- Load the TypeScript compiled dashboard -->
+    <script src="dashboard.js"></script>
 </body>
 </html>

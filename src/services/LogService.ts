@@ -405,14 +405,16 @@ class LogService extends EventEmitter {
     }
     
     try {
+      // Get all logs and filter by browserId
       const allLogs = await this.collection.find({}).toArray();
-      const mainThreadLogs = allLogs.filter(log => {
+      const browserLogs = allLogs.filter(log => {
         const message = log.msg || log.message || '';
-        return !extractBrowserId(message);
+        const logBrowserId = extractBrowserId(message);
+        return logBrowserId === browserId;
       });
 
       const stats = {
-        totalLogs: mainThreadLogs.length,
+        totalLogs: browserLogs.length,
         errorCount: 0,
         warnCount: 0,
         infoCount: 0,
@@ -420,7 +422,7 @@ class LogService extends EventEmitter {
         lastLogTime: '1970-01-01T00:00:00.000Z'
       };
 
-      mainThreadLogs.forEach(log => {
+      browserLogs.forEach(log => {
         const level = this.mapLogLevel(log.level);
         switch (level) {
           case 'error':

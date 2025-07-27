@@ -37,6 +37,9 @@ class LogDashboard {
     private charts: Map<string, Chart>;
     private showMainThread: boolean = true;
     private currentBrowserId: string | null = null;
+    private activeBrowserWindows: Map<string, HTMLElement> = new Map();
+    private logUpdateIntervals: Map<string, NodeJS.Timeout> = new Map();
+    private browserDetectionInterval: NodeJS.Timeout | null = null;
 
     constructor() {
         this.browsers = new Map<string, BrowserStats>();
@@ -48,6 +51,7 @@ class LogDashboard {
         this.setupEventListeners();
         this.loadInitialData();
         this.startPeriodicUpdates();
+        this.startRealTimeBrowserDetection();
         this.updateConnectionStatus(true); // Always show as connected for HTTP polling
     }
 
@@ -60,6 +64,10 @@ class LogDashboard {
                 // 直接触发加载该浏览器日志
                 if (target.value) {
                     this.viewBrowserLogs(target.value);
+                } else {
+                    // 选择"All Browsers"时显示所有日志
+                    this.viewAllLogs();
+                    this.currentBrowserId = null;
                 }
             });
         }
@@ -380,19 +388,40 @@ class LogDashboard {
 
         filteredResults.forEach((log: LogEntry) => {
             const logDiv = document.createElement('div');
-            logDiv.className = `log-entry px-2 py-1 mb-1 rounded border-l-4 ${this.getLevelClass(log.level)}`;
-            // VSCode/debug style formatting
-            const time = new Date(log.timestamp).toLocaleTimeString();
-            const level = log.level.toUpperCase().padEnd(5);
-            const browser = log.isMainThread ? '<span class="text-xs bg-gray-600 text-white px-2 py-1 rounded ml-2">MainThread</span>' : (log.browserId ? `<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">Browser ${log.browserId}</span>` : '');
+            logDiv.className = `log-entry mb-2 p-2 border-l-4 ${this.getLevelClass(log.level)}`;
+            
+            // Simple one-line format: time + level + browser + message
+            const time = new Date(log.timestamp).toLocaleString();
+            const level = log.level.toUpperCase();
+            const browserInfo = log.isMainThread ? '[MainThread]' : (log.browserId ? `[Browser ${log.browserId}]` : '');
+            
             logDiv.innerHTML = `
-                <span class="font-mono text-xs text-gray-400">${time}</span>
-                <span class="font-mono text-xs font-bold ml-2">${level}</span>
-                ${browser}
-                <span class="ml-2">${this.formatLogMessage(log.message)}</span>
+                <div class="text-xs text-gray-300">${time}</div>
+                <div class="font-bold ${this.getLevelColorClass(log.level)}">[${level}] ${browserInfo}</div>
+                <div class="text-white">${this.formatLogMessage(log.message)}</div>
             `;
             resultsContainer.appendChild(logDiv);
         });
+    }
+
+    private getLevelColor(level: string): string {
+        switch (level.toLowerCase()) {
+            case 'error': return 'red';
+            case 'warn': return 'yellow';
+            case 'info': return 'blue';
+            case 'debug': return 'gray';
+            default: return 'gray';
+        }
+    }
+
+    private getLevelColorClass(level: string): string {
+        switch (level.toLowerCase()) {
+            case 'error': return 'text-red-300';
+            case 'warn': return 'text-yellow-300';
+            case 'info': return 'text-blue-300';
+            case 'debug': return 'text-gray-300';
+            default: return 'text-gray-300';
+        }
     }
 
     private formatLogMessage(msg: string): string {
@@ -415,6 +444,48 @@ class LogDashboard {
             case 'info': return 'bg-blue-100 text-blue-800';
             case 'debug': return 'bg-gray-100 text-gray-800';
             default: return 'bg-gray-100 text-gray-800';
+        }
+    }
+
+    private clearLogDisplay(): void {
+        const resultsContainer = document.getElementById('search-results');
+        if (resultsContainer) {
+            resultsContainer.innerHTML = '<p class="text-gray-500">请选择浏览器查看日志</p>';
+        }
+    }
+
+    private async viewAllLogs(): Promise<void> {
+        try {
+            // Get all browser IDs first
+            const browsersResponse = await fetch('/api/logs/browsers');
+            const browsersData = await browsersResponse.json();
+            const browserIds = browsersData.browserIds || [];
+            
+            // Fetch logs from all browsers
+            let allLogs: LogEntry[] = [];
+            
+            for (const browserId of browserIds) {
+                try {
+                    const response = await fetch(`/api/logs/browser/${browserId}?limit=50`);
+                    const data = await response.json();
+                    const logs = data.logs || [];
+                    allLogs = allLogs.concat(logs);
+                } catch (error) {
+                    console.error(`Error fetching logs for browser ${browserId}:`, error);
+                }
+            }
+            
+            // Sort logs by timestamp (newest first)
+            allLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+            
+            // Mark mainthread logs for toggle and formatting
+            allLogs = allLogs.map((log: LogEntry) => ({ ...log, isMainThread: !log.browserId }));
+            
+            this.displaySearchResults(allLogs);
+            this.showSuccess(`显示所有浏览器日志 (${allLogs.length} 条)`);
+        } catch (error) {
+            console.error('Error viewing all logs:', error);
+            this.showError('Failed to load all logs');
         }
     }
 
@@ -534,10 +605,182 @@ class LogDashboard {
     }
 
     private startPeriodicUpdates(): void {
+        // Update dashboard every 30 seconds
         setInterval(() => {
             this.loadInitialData();
-        }, 30000); // Update every 30 seconds
+        }, 30000);
     }
+
+private startRealTimeBrowserDetection(): void {
+    // Check for new browsers every 5 seconds
+    this.browserDetectionInterval = setInterval(() => {
+        this.detectAndCreateBrowserWindows();
+    }, 5000);
+    
+    // Initial detection
+    this.detectAndCreateBrowserWindows();
+}
+
+private async detectAndCreateBrowserWindows(): Promise<void> {
+    try {
+        const response = await fetch('/api/logs/browsers');
+        const data = await response.json();
+        const currentBrowserIds = data.browserIds || [];
+        
+        // Create windows for new browsers
+        for (const browserId of currentBrowserIds) {
+            if (!this.activeBrowserWindows.has(browserId)) {
+                this.createBrowserLogWindow(browserId);
+            }
+        }
+        
+        // Remove windows for browsers that are no longer active
+        for (const [browserId, windowElement] of this.activeBrowserWindows) {
+            if (!currentBrowserIds.includes(browserId)) {
+                this.removeBrowserLogWindow(browserId);
+            }
+        }
+    } catch (error) {
+        console.error('Error detecting browsers:', error);
+    }
+}
+
+private createBrowserLogWindow(browserId: string): void {
+    const container = document.getElementById('real-time-logs-container');
+    if (!container) {
+        // Create container if it doesn't exist
+        this.createRealTimeLogsContainer();
+        return this.createBrowserLogWindow(browserId);
+    }
+    
+    const windowDiv = document.createElement('div');
+    windowDiv.id = `browser-window-${browserId}`;
+    windowDiv.className = 'bg-white rounded-lg shadow-lg p-4 mb-4';
+    windowDiv.innerHTML = `
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-lg font-bold text-gray-800">Browser ${browserId} - 实时日志</h3>
+            <div class="flex items-center space-x-2">
+                <span class="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                <span class="text-sm text-gray-500">实时</span>
+            </div>
+        </div>
+        <div id="logs-${browserId}" class="bg-gray-900 text-white p-3 rounded h-64 overflow-y-auto font-mono text-sm">
+            <div class="text-gray-400">等待日志数据...</div>
+        </div>
+        <div class="mt-2 text-xs text-gray-500">
+            最后更新: <span id="last-update-${browserId}">--</span>
+        </div>
+    `;
+    
+    container.appendChild(windowDiv);
+    this.activeBrowserWindows.set(browserId, windowDiv);
+    
+    // Start real-time log updates for this browser
+    this.startLogUpdatesForBrowser(browserId);
+    
+    this.showSuccess(`已为 Browser ${browserId} 创建实时日志窗口`);
+}
+
+private removeBrowserLogWindow(browserId: string): void {
+    const windowElement = this.activeBrowserWindows.get(browserId);
+    if (windowElement) {
+        windowElement.remove();
+        this.activeBrowserWindows.delete(browserId);
+    }
+    
+    // Stop log updates
+    const interval = this.logUpdateIntervals.get(browserId);
+    if (interval) {
+        clearInterval(interval);
+        this.logUpdateIntervals.delete(browserId);
+    }
+    
+    this.showSuccess(`Browser ${browserId} 日志窗口已关闭`);
+}
+
+private createRealTimeLogsContainer(): void {
+    const mainContainer = document.querySelector('.container');
+    if (!mainContainer) return;
+    
+    const containerDiv = document.createElement('div');
+    containerDiv.innerHTML = `
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+            <h2 class="text-xl font-bold mb-4">🔴 实时浏览器日志窗口</h2>
+            <p class="text-gray-600 mb-4">根据 MongoDB 中检测到的活跃浏览器自动创建实时日志显示窗口</p>
+            <div id="real-time-logs-container" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- 动态浏览器日志窗口将在这里创建 -->
+            </div>
+        </div>
+    `;
+    
+    mainContainer.appendChild(containerDiv);
+}
+
+private startLogUpdatesForBrowser(browserId: string): void {
+    // Update logs every 2 seconds for real-time effect
+    const interval = setInterval(async () => {
+        await this.updateBrowserLogs(browserId);
+    }, 2000);
+    
+    this.logUpdateIntervals.set(browserId, interval);
+    
+    // Initial load
+    this.updateBrowserLogs(browserId);
+}
+
+private async updateBrowserLogs(browserId: string): Promise<void> {
+    try {
+        const response = await fetch(`/api/logs/browser/${browserId}?limit=20`);
+        const data = await response.json();
+        const logs = data.logs || [];
+        
+        const logsContainer = document.getElementById(`logs-${browserId}`);
+        const lastUpdateElement = document.getElementById(`last-update-${browserId}`);
+        
+        if (logsContainer && logs.length > 0) {
+            // Clear and add new logs
+            logsContainer.innerHTML = '';
+            
+            logs.slice(0, 10).forEach((log: LogEntry) => {
+                const logDiv = document.createElement('div');
+                logDiv.className = 'mb-1 text-xs';
+                
+                const time = this.parseUTCTime(log.timestamp);
+                const level = log.level.toUpperCase();
+                const levelColor = this.getLevelColorClass(log.level).replace('text-', '');
+                
+                logDiv.innerHTML = `
+                    <span class="text-gray-400">${time}</span>
+                    <span class="${this.getLevelColorClass(log.level)} font-bold ml-2">[${level}]</span>
+                    <span class="text-white ml-2">${this.truncateMessage(log.message, 80)}</span>
+                `;
+                
+                logsContainer.appendChild(logDiv);
+            });
+            
+            // Auto scroll to bottom
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+        
+        if (lastUpdateElement) {
+            lastUpdateElement.textContent = new Date().toLocaleTimeString();
+        }
+    } catch (error) {
+        console.error(`Error updating logs for browser ${browserId}:`, error);
+    }
+}
+
+private parseUTCTime(ts: string): string {
+    if (!ts) return '';
+    const date = new Date(ts.endsWith('Z') ? ts : ts + 'Z');
+    return date.toLocaleTimeString();
+}
+
+private truncateMessage(message: string, maxLength: number): string {
+    if (message.length <= maxLength) return message;
+    return message.substring(0, maxLength) + '...';
+}
+
 }
 
 // Initialize dashboard when DOM is loaded

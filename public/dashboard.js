@@ -2,6 +2,7 @@
 class LogDashboard {
     constructor() {
         this.showMainThread = true;
+        this.selectedLevel = '';
         this.currentBrowserId = null;
         this.activeBrowserWindows = new Map();
         this.logUpdateIntervals = new Map();
@@ -31,6 +32,20 @@ class LogDashboard {
                     // 选择"All Browsers"时显示所有日志
                     this.viewAllLogs();
                     this.currentBrowserId = null;
+                }
+            });
+        }
+        // Level filter change
+        const levelFilter = document.getElementById('level-filter');
+        if (levelFilter) {
+            levelFilter.addEventListener('change', (e) => {
+                const target = e.target;
+                this.selectedLevel = target.value;
+                // Refresh current view with new level filter
+                if (this.currentBrowserId) {
+                    this.viewBrowserLogs(this.currentBrowserId);
+                } else {
+                    this.performSearch();
                 }
             });
         }
@@ -301,6 +316,10 @@ class LogDashboard {
         if (!this.showMainThread) {
             filteredResults = results.filter(log => !log.isMainThread);
         }
+        // Filter by selected level if specified
+        if (this.selectedLevel) {
+            filteredResults = filteredResults.filter(log => log.level && log.level.toLowerCase() === this.selectedLevel.toLowerCase());
+        }
         resultsContainer.innerHTML = '';
         if (!filteredResults || filteredResults.length === 0) {
             resultsContainer.innerHTML = '<p class="text-gray-500">无日志</p>';
@@ -308,15 +327,28 @@ class LogDashboard {
         }
         filteredResults.forEach((log) => {
             const logDiv = document.createElement('div');
-            logDiv.className = `log-entry mb-2 p-2 border-l-4 ${this.getLevelClass(log.level)}`;
-            // Simple one-line format: time + level + browser + message
-            const time = new Date(log.timestamp).toLocaleString();
+            logDiv.className = `log-entry mb-1 p-3 rounded-md ${this.getLogEntryClass(log.level)} hover:bg-opacity-80 transition-colors duration-200`;
+            
+            // Format time in a more compact way
+            const time = new Date(log.timestamp).toLocaleString('zh-CN', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            
             const level = log.level.toUpperCase();
             const browserInfo = log.isMainThread ? '[MainThread]' : (log.browserId ? `[Browser ${log.browserId}]` : '');
+            
+            // Merge all information into a single line with better spacing and contrast
             logDiv.innerHTML = `
-                <div class="text-xs text-gray-300">${time}</div>
-                <div class="font-bold ${this.getLevelColorClass(log.level)}">[${level}] ${browserInfo}</div>
-                <div class="text-white">${this.formatLogMessage(log.message)}</div>
+                <div class="font-mono text-sm leading-relaxed">
+                    <span class="${this.getTimeClass()}">${time}</span>
+                    <span class="mx-2 font-bold ${this.getLevelColorClass(log.level)} px-2 py-1 rounded text-xs">${level}</span>
+                    <span class="${this.getBrowserInfoClass(log.isMainThread)} font-medium">${browserInfo}</span>
+                    <span class="ml-2 ${this.getMessageClass()}">${this.formatLogMessage(log.message)}</span>
+                </div>
             `;
             resultsContainer.appendChild(logDiv);
         });
@@ -361,6 +393,28 @@ class LogDashboard {
             case 'debug': return 'bg-gray-100 text-gray-800';
             default: return 'bg-gray-100 text-gray-800';
         }
+    }
+    
+    getLogEntryClass(level) {
+        switch (level.toLowerCase()) {
+            case 'error': return 'bg-gray-800 border-l-4 border-red-400';
+            case 'warn': return 'bg-gray-800 border-l-4 border-yellow-400';
+            case 'info': return 'bg-gray-800 border-l-4 border-blue-400';
+            case 'debug': return 'bg-gray-800 border-l-4 border-gray-400';
+            default: return 'bg-gray-800 border-l-4 border-gray-400';
+        }
+    }
+    
+    getTimeClass() {
+        return 'text-gray-300 font-medium';
+    }
+    
+    getBrowserInfoClass(isMainThread) {
+        return isMainThread ? 'text-purple-300' : 'text-cyan-300';
+    }
+    
+    getMessageClass() {
+        return 'text-white font-medium';
     }
     clearLogDisplay() {
         const resultsContainer = document.getElementById('search-results');

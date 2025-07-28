@@ -4,58 +4,196 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>API Test Page</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .result { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
-        .error { background: #ffebee; color: #c62828; }
-        .success { background: #e8f5e8; color: #2e7d32; }
+        .log-entry {
+            transition: all 0.2s ease;
+        }
+        .log-entry:hover {
+            transform: translateX(2px);
+        }
     </style>
 </head>
-<body>
-    <h1>API Test Page</h1>
-    <button onclick="testAPI()">Test /api/overview</button>
-    <button onclick="testLogs()">Test /api/logs</button>
-    
-    <div id="results"></div>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold mb-6 text-gray-800">🧪 API Test Page</h1>
+        
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-6">
+            <div class="flex flex-wrap gap-4 mb-4">
+                <button onclick="testAPI()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors">
+                    Test /api/overview
+                </button>
+                <button onclick="testLogs()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md transition-colors">
+                    Test /api/logs
+                </button>
+                <button onclick="testLogsWithLimit()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md transition-colors">
+                    Test /api/logs (limit=10)
+                </button>
+                <button onclick="testBrowsers()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md transition-colors">
+                    Test /api/logs/browsers
+                </button>
+            </div>
+        </div>
+        
+        <div id="results" class="space-y-4"></div>
+    </div>
 
     <script>
+        // Utility functions for log display
+        function getLevelColorClass(level) {
+            switch (level.toLowerCase()) {
+                case 'error': return 'text-red-300 bg-red-900';
+                case 'warn': return 'text-yellow-300 bg-yellow-900';
+                case 'info': return 'text-blue-300 bg-blue-900';
+                case 'debug': return 'text-gray-300 bg-gray-700';
+                default: return 'text-gray-300 bg-gray-700';
+            }
+        }
+        
+        function getLogEntryClass(level) {
+            switch (level.toLowerCase()) {
+                case 'error': return 'bg-gray-800 border-l-4 border-red-400';
+                case 'warn': return 'bg-gray-800 border-l-4 border-yellow-400';
+                case 'info': return 'bg-gray-800 border-l-4 border-blue-400';
+                case 'debug': return 'bg-gray-800 border-l-4 border-gray-400';
+                default: return 'bg-gray-800 border-l-4 border-gray-400';
+            }
+        }
+        
+        function formatLogMessage(msg) {
+            if (!msg) return '';
+            // Remove ANSI color codes
+            return msg.replace(/\u001b\[[0-9;]*m/g, '').replace(/\n/g, ' ');
+        }
+        
+        function displayOptimizedLogs(logs, title) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = `
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <div class="bg-gray-800 text-white p-4">
+                        <h3 class="text-lg font-bold">${title}</h3>
+                        <p class="text-gray-300 text-sm">共 ${logs.length} 条日志</p>
+                    </div>
+                    <div class="bg-gray-900 p-4 max-h-96 overflow-y-auto">
+            `;
+            
+            if (logs.length === 0) {
+                html += '<p class="text-gray-400">无日志数据</p>';
+            } else {
+                logs.forEach(log => {
+                    const time = new Date(log.timestamp).toLocaleString('zh-CN', {
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    
+                    const level = log.level.toUpperCase();
+                    const browserInfo = log.browserId ? `[Browser ${log.browserId}]` : '[MainThread]';
+                    const message = formatLogMessage(log.message);
+                    
+                    html += `
+                        <div class="log-entry mb-1 p-3 rounded-md ${getLogEntryClass(log.level)} hover:bg-opacity-80 transition-colors duration-200">
+                            <div class="font-mono text-sm leading-relaxed">
+                                <span class="text-gray-300 font-medium">${time}</span>
+                                <span class="mx-2 font-bold ${getLevelColorClass(log.level)} px-2 py-1 rounded text-xs">${level}</span>
+                                <span class="text-cyan-300 font-medium">${browserInfo}</span>
+                                <span class="ml-2 text-white font-medium">${message}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = html;
+        }
+        
         async function testAPI() {
             const resultsDiv = document.getElementById('results');
             try {
                 const response = await fetch('/api/overview');
                 const data = await response.json();
                 resultsDiv.innerHTML = `
-                    <div class="result success">
-                        <h3>API Response:</h3>
-                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-bold text-green-600 mb-4">✅ API Overview Response</h3>
+                        <div class="bg-gray-100 p-4 rounded-md">
+                            <pre class="text-sm">${JSON.stringify(data, null, 2)}</pre>
+                        </div>
                     </div>
                 `;
             } catch (error) {
                 resultsDiv.innerHTML = `
-                    <div class="result error">
-                        <h3>Error:</h3>
-                        <p>${error.message}</p>
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-bold text-red-600 mb-4">❌ Error</h3>
+                        <p class="text-red-700">${error.message}</p>
                     </div>
                 `;
             }
         }
 
         async function testLogs() {
-            const resultsDiv = document.getElementById('results');
             try {
-                const response = await fetch('/api/logs');
+                const response = await fetch('/api/logs?limit=20');
                 const data = await response.json();
+                displayOptimizedLogs(data.logs || [], '📋 API Logs Response');
+            } catch (error) {
+                const resultsDiv = document.getElementById('results');
                 resultsDiv.innerHTML = `
-                    <div class="result success">
-                        <h3>Logs Response:</h3>
-                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-bold text-red-600 mb-4">❌ Error</h3>
+                        <p class="text-red-700">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testLogsWithLimit() {
+            try {
+                const response = await fetch('/api/logs?limit=10');
+                const data = await response.json();
+                displayOptimizedLogs(data.logs || [], '📋 API Logs (Limit 10)');
+            } catch (error) {
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = `
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-bold text-red-600 mb-4">❌ Error</h3>
+                        <p class="text-red-700">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testBrowsers() {
+            try {
+                const response = await fetch('/api/logs/browsers');
+                const data = await response.json();
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = `
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-bold text-blue-600 mb-4">🌐 Browser IDs Response</h3>
+                        <div class="bg-blue-50 p-4 rounded-md">
+                            <p class="font-medium mb-2">发现 ${data.browserIds?.length || 0} 个浏览器:</p>
+                            <div class="flex flex-wrap gap-2">
+                                ${(data.browserIds || []).map(id => 
+                                    `<span class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm">Browser ${id}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
                     </div>
                 `;
             } catch (error) {
+                const resultsDiv = document.getElementById('results');
                 resultsDiv.innerHTML = `
-                    <div class="result error">
-                        <h3>Error:</h3>
-                        <p>${error.message}</p>
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-bold text-red-600 mb-4">❌ Error</h3>
+                        <p class="text-red-700">${error.message}</p>
                     </div>
                 `;
             }
@@ -63,7 +201,7 @@
 
         // Auto-test on page load
         window.onload = function() {
-            testAPI();
+            testLogs();
         };
     </script>
 </body>

@@ -92,15 +92,30 @@ function createLogsRouter(logService: LogService, elasticsearchService: Elastics
     try {
       const { limit, skip, startTime, endTime, level } = req.query as QueryParams;
       
-      const logs = await logService.getLogs({
-        limit: parseInt(limit || '100'),
-        skip: parseInt(skip || '0'),
-        startTime,
-        endTime,
-        level
-      });
+      // Build MongoDB filter object
+      const filter: any = {};
       
-      res.json({ logs, count: logs.length });
+      if (startTime || endTime) {
+        filter.time = {};  // Use 'time' field as per actual data structure
+        if (startTime) filter.time.$gte = startTime;
+        if (endTime) filter.time.$lte = endTime;
+      }
+      
+      if (level) {
+        // Convert string level to numeric if needed
+        const levelMap: { [key: string]: number } = {
+          'trace': 10, 'debug': 20, 'info': 30, 'warn': 40, 'error': 50, 'fatal': 60
+        };
+        filter.level = levelMap[level] || level;
+      }
+      
+      const logs = await logService.getLogs(filter, parseInt(limit || '100'));
+      
+      // Apply skip manually since MongoDB skip is expensive for large datasets
+      const skipNum = parseInt(skip || '0');
+      const paginatedLogs = skipNum > 0 ? logs.slice(skipNum) : logs;
+      
+      res.json({ logs: paginatedLogs, count: paginatedLogs.length, total: logs.length });
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });
     }

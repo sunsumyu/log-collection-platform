@@ -26,6 +26,17 @@
         .level-warn { @apply bg-yellow-100 border-yellow-500 text-yellow-700; }
         .level-info { @apply bg-blue-100 border-blue-500 text-blue-700; }
         .level-debug { @apply bg-gray-100 border-gray-500 text-gray-700; }
+        
+        /* Log level filter buttons */
+        .log-level-btn {
+            @apply bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200;
+        }
+        .log-level-btn.active {
+            @apply bg-blue-500 text-white border-blue-500;
+        }
+        .log-level-btn:hover {
+            @apply shadow-sm;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -121,8 +132,11 @@
                         Search
                     </button>
                 </div>
-                <div id="search-results" class="space-y-2 max-h-96 overflow-y-auto">
-                    <!-- Search results will appear here -->
+                <div id="search-results" class="space-y-2 h-96 overflow-y-auto border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <div class="text-gray-500 text-center py-8">
+                        <span class="text-4xl mb-2 block">🔍</span>
+                        <p>输入搜索条件开始查找日志</p>
+                    </div>
                 </div>
             </div>
         </main>

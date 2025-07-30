@@ -43,6 +43,13 @@
                 <select id="browser-filter" class="px-3 py-2 border border-gray-300 rounded-md">
                     <option value="">All Browsers</option>
                 </select>
+                <select id="level-filter" class="px-3 py-2 border border-gray-300 rounded-md">
+                    <option value="">All Levels</option>
+                    <option value="error">🔴 Error</option>
+                    <option value="warn">🟡 Warning</option>
+                    <option value="info">🔵 Info</option>
+                    <option value="debug">⚪ Debug</option>
+                </select>
                 <button id="search-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Search</button>
                 <button id="refresh-btn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md">Refresh</button>
                 <button id="clear-logs-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md">Clear</button>
@@ -52,8 +59,11 @@
                 <input type="checkbox" id="mainthread-toggle" checked class="mr-4">
             </div>
             <h3 class="text-lg font-bold mb-2">日志显示区</h3>
-            <div id="search-results" class="text-sm font-mono bg-gray-900 text-gray-100 rounded p-4 min-h-[200px]">
-                <!-- 日志信息将在这里显示 -->
+            <div id="search-results" class="text-sm font-mono bg-gray-900 text-gray-100 rounded p-4 h-96 overflow-y-auto">
+                <div class="text-gray-500 text-center py-8">
+                    <span class="text-4xl mb-2 block">🔍</span>
+                    <p>输入搜索条件开始查找日志</p>
+                </div>
             </div>
         </div>
 

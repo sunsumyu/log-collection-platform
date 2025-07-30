@@ -523,107 +523,15 @@ class LogDashboard {
     viewAllLogs() {
         console.log('Viewing all logs');
     }
-    // Search functionality with grouping
-    async performSearch() {
+    performSearch() {
         const searchInput = document.getElementById('search-input');
-        const browserFilter = document.getElementById('browser-filter');
-        const searchTerm = searchInput?.value || '';
-        const browserId = browserFilter?.value || '';
-        
-        if (!searchTerm.trim()) {
-            this.showSearchMessage('请输入搜索关键词');
-            return;
-        }
-        
-        await this.executeSearch(searchTerm, browserId);
-    }
-    
-    async executeSearch(searchTerm, browserId = '') {
-        try {
-            this.showSearchLoading();
-            
-            let url = '/api/logs/search';
-            const params = new URLSearchParams();
-            
-            if (searchTerm) {
-                params.append('q', searchTerm);
-            }
-            if (browserId) {
-                params.append('browserId', browserId);
-            }
-            params.append('limit', '100');
-            
-            if (params.toString()) {
-                url += '?' + params.toString();
-            }
-            
-            const response = await fetch(url);
-            const data = await response.json();
-            
-            this.searchResults = data.logs || [];
-            this.renderSearchResults();
-            
-        } catch (error) {
-            console.error('Error performing search:', error);
-            this.showSearchError('搜索时发生错误，请重试');
-        }
-    }
-    
-    async performAdvancedSearch() {
-        try {
-            this.showSearchLoading();
-            
-            const filters = this.getSearchFilters();
-            let url = '/api/logs/search';
-            const params = new URLSearchParams();
-            
-            if (filters.searchTerm) params.append('q', filters.searchTerm);
-            if (filters.browserId) params.append('browserId', filters.browserId);
-            if (filters.hostname) params.append('hostname', filters.hostname);
-            if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
-            if (filters.dateTo) params.append('dateTo', filters.dateTo);
-            if (filters.logLevel) params.append('level', filters.logLevel);
-            params.append('limit', '200');
-            
-            if (params.toString()) {
-                url += '?' + params.toString();
-            }
-            
-            const response = await fetch(url);
-            const data = await response.json();
-            
-            this.searchResults = data.logs || [];
-            this.renderSearchResults();
-            
-        } catch (error) {
-            console.error('Error performing advanced search:', error);
-            this.showSearchError('高级搜索时发生错误，请重试');
-        }
-    }
-    
-    getSearchFilters() {
-        const searchInput = document.getElementById('search-input');
-        const browserFilter = document.getElementById('browser-filter');
-        const hostnameFilter = document.getElementById('hostname-filter');
-        const dateFromFilter = document.getElementById('date-from-filter');
-        const dateToFilter = document.getElementById('date-to-filter');
-        const levelFilter = document.getElementById('level-filter');
-        
-        return {
-            searchTerm: searchInput?.value || '',
-            browserId: browserFilter?.value || '',
-            hostname: hostnameFilter?.value || '',
-            dateFrom: dateFromFilter?.value || '',
-            dateTo: dateToFilter?.value || '',
-            logLevel: levelFilter?.value || ''
-        };
+        const searchTerm = (searchInput === null || searchInput === void 0 ? void 0 : searchInput.value) || '';
+        console.log(`Performing search for: ${searchTerm}`);
     }
     clearAllLogs() {
         console.log('Clearing all logs');
     }
 }
-// ... (rest of the code remains the same)
-
 // Initialize the dashboard when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new LogDashboard();

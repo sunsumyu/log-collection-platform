@@ -39,38 +39,45 @@ class LogService extends EventEmitter {
   async connect(): Promise<void> {
     if (this.connected) return;
 
+    const uri = this.config.mongodbUri || process.env.MONGODB_URI || 'mongodb://localhost:27017/on-chain-inter-logs';
+    this.logger.info(`🔄 Attempting to connect to MongoDB at: ${uri.replace(/:\/\/[^:]+:[^@]+@/, '://***:***@')}`);
+
     try {
-      const uri = this.config.mongodbUri || process.env.MONGODB_URI || 'mongodb://107.161.83.190:27017/on-chain-inter-logs';
       this.client = new MongoClient(uri, {
-        maxPoolSize: 10,
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-        connectTimeoutMS: 10000,
-        maxIdleTimeMS: 30000,
-        retryWrites: true,
-        retryReads: true,
-        heartbeatFrequencyMS: 10000,
-        minPoolSize: 1
+        serverSelectionTimeoutMS: 5000, // 5 second timeout
+        connectTimeoutMS: 10000, // 10 second timeout
       });
+      
+      this.logger.info('🔗 Connecting to MongoDB...');
       await this.client.connect();
+      
+      this.logger.info('📊 Selecting database...');
       this.db = this.client.db('on-chain-inter-logs');
       this.collection = this.db.collection('activity_logs');
+      
+      // Test the connection with a simple operation
+      await this.db.admin().ping();
+      
       this.connected = true;
       this.logger.info('✅ MongoDB connected successfully');
     } catch (error) {
-      const connectionUri = this.config.mongodbUri || process.env.MONGODB_URI || 'mongodb://107.161.83.190:27017/on-chain-inter-logs';
-      this.logger.error('❌ MongoDB connection failed');
-      this.logger.error(`Connection URI: ${connectionUri}`);
+      this.logger.error('❌ MongoDB connection failed:');
+      this.logger.error('Error details:', {
+        name: (error as Error).name,
+        message: (error as Error).message,
+        code: (error as any).code,
+        codeName: (error as any).codeName
+      });
       
-      if (error instanceof Error) {
-        this.logger.error(`Error message: ${error.message}`);
-        this.logger.error(`Error name: ${error.name}`);
-        if (error.stack) {
-          this.logger.error(`Error stack: ${error.stack}`);
-        }
-      } else {
-        this.logger.error(`Unknown error: ${JSON.stringify(error)}`);
+      // Provide helpful error messages based on common issues
+      if ((error as Error).message.includes('ECONNREFUSED')) {
+        this.logger.error('💡 Suggestion: MongoDB server is not running or not accessible on the specified port');
+      } else if ((error as Error).message.includes('Authentication failed')) {
+        this.logger.error('💡 Suggestion: Check your username and password in the connection string');
+      } else if ((error as Error).message.includes('Server selection timed out')) {
+        this.logger.error('💡 Suggestion: MongoDB server is not responding. Check if MongoDB service is running');
       }
+      
       throw error;
     }
   }
@@ -160,7 +167,7 @@ class LogService extends EventEmitter {
         return {
           level: this.mapLogLevel(log.level),
           message: messageText,
-          timestamp: log.timestamp || log.time || new Date().toISOString(),
+          timestamp: log.time || log.timestamp || new Date().toISOString(),  // Prioritize 'time' field
           metadata: log.metadata,
           browserId: browserId
         };
@@ -171,13 +178,32 @@ class LogService extends EventEmitter {
     }
   }
 
+  private mapLogLevel(level: any): string {
+    // Handle both numeric and string log levels
+    if (typeof level === 'string') {
+      return level;
+    }
+    
+    // Map numeric pino log levels to string
+    const levelMap: { [key: number]: string } = {
+      10: 'trace',
+      20: 'debug', 
+      30: 'info',
+      40: 'warn',
+      50: 'error',
+      60: 'fatal'
+    };
+    
+    return levelMap[level] || 'info';
+  }
+
   async getLogsByLevel(level: string, limit: number = 100): Promise<LogEntry[]> {
     return this.getLogs({ level }, limit);
   }
 
   async getLogsByTimeRange(startTime: Date, endTime: Date, limit: number = 100): Promise<LogEntry[]> {
     return this.getLogs({
-      timestamp: {
+      time: {
         $gte: startTime.toISOString(),
         $lte: endTime.toISOString()
       }
@@ -560,23 +586,7 @@ class LogService extends EventEmitter {
     return this.logger;
   }
 
-  private mapLogLevel(level: any): string {
-    // Handle numeric log levels (Pino format)
-    if (typeof level === 'number') {
-      switch (level) {
-        case 10: return 'trace';
-        case 20: return 'debug';
-        case 30: return 'info';
-        case 40: return 'warn';
-        case 50: return 'error';
-        case 60: return 'fatal';
-        default: return 'info';
-      }
-    }
-    
-    // Handle string log levels
-    return level || 'info';
-  }
+
 }
 
 export { LogService, LogEntry, LogServiceConfig };

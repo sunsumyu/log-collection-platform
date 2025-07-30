@@ -40,14 +40,37 @@ class LogService extends EventEmitter {
     if (this.connected) return;
 
     try {
-      this.client = new MongoClient(this.config.mongodbUri || process.env.MONGODB_URI || 'mongodb://localhost:27017/on-chain-inter-logs');
+      const uri = this.config.mongodbUri || process.env.MONGODB_URI || 'mongodb://107.161.83.190:27017/on-chain-inter-logs';
+      this.client = new MongoClient(uri, {
+        maxPoolSize: 10,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+        connectTimeoutMS: 10000,
+        maxIdleTimeMS: 30000,
+        retryWrites: true,
+        retryReads: true,
+        heartbeatFrequencyMS: 10000,
+        minPoolSize: 1
+      });
       await this.client.connect();
       this.db = this.client.db('on-chain-inter-logs');
       this.collection = this.db.collection('activity_logs');
       this.connected = true;
       this.logger.info('✅ MongoDB connected successfully');
     } catch (error) {
-      this.logger.error('❌ MongoDB connection failed:', error);
+      const connectionUri = this.config.mongodbUri || process.env.MONGODB_URI || 'mongodb://107.161.83.190:27017/on-chain-inter-logs';
+      this.logger.error('❌ MongoDB connection failed');
+      this.logger.error(`Connection URI: ${connectionUri}`);
+      
+      if (error instanceof Error) {
+        this.logger.error(`Error message: ${error.message}`);
+        this.logger.error(`Error name: ${error.name}`);
+        if (error.stack) {
+          this.logger.error(`Error stack: ${error.stack}`);
+        }
+      } else {
+        this.logger.error(`Unknown error: ${JSON.stringify(error)}`);
+      }
       throw error;
     }
   }
@@ -73,7 +96,7 @@ class LogService extends EventEmitter {
 
   async initialize(): Promise<void> {
     try {
-      const uri = this.config.mongodbUri || process.env.MONGODB_URI || 'mongodb://localhost:27017/on-chain-inter-logs';
+      const uri = this.config.mongodbUri || process.env.MONGODB_URI || 'mongodb://107.161.83.190:27017/on-chain-inter-logs';
       this.client = new MongoClient(uri);
       await this.client.connect();
       

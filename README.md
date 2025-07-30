@@ -56,7 +56,7 @@ docker-compose logs -f
 - **Web Dashboard**: http://localhost:3000
 - **Kibana**: http://localhost:5601
 - **Elasticsearch**: http://localhost:9200
-- **MongoDB**: mongodb://localhost:27017
+- **MongoDB**: mongodb://107.161.83.190:27017
 
 ## 🔧 手动启动（开发模式）
 
@@ -107,7 +107,7 @@ require('winston-mongodb');
 const logger = winston.createLogger({
   transports: [
     new winston.transports.MongoDB({
-      db: 'mongodb://admin:password@localhost:27017/logs?authSource=admin',
+      db: 'mongodb://admin:password@107.161.83.190:27017/logs?authSource=admin',
       collection: 'app_logs'
     })
   ]
@@ -140,7 +140,7 @@ fetch('/api/logs/test', {
 ```javascript
 const { MongoClient } = require('mongodb');
 
-const client = new MongoClient('mongodb://admin:password@localhost:27017');
+const client = new MongoClient('mongodb://admin:password@107.161.83.190:27017');
 const db = client.db('logs');
 const collection = db.collection('app_logs');
 

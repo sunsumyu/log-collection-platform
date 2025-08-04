@@ -351,7 +351,7 @@ export class ElasticsearchService {
     console.log('Elasticsearch connection closed');
   }
 
-  isConnected(): boolean {
+  isConnected(): boolean { 
     return this.connected;
   }
 

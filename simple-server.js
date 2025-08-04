@@ -58,7 +58,7 @@ function processLogEntry(log) {
 // Connect to MongoDB
 async function connectDB() {
   try {
-    const client = new MongoClient('mongodb://localhost:27017/on-chain-inter-logs');
+    const client = new MongoClient('mongodb://107.161.83.190:27017/on-chain-inter-logs');
     await client.connect();
     db = client.db('on-chain-inter-logs');
     collection = db.collection('activity_logs');

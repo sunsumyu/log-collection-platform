@@ -103,7 +103,7 @@ class LogService extends EventEmitter {
 
   async initialize(): Promise<void> {
     try {
-      const uri = this.config.mongodbUri || process.env.MONGODB_URI || 'mongodb://localhost:27017/on-chain-inter-logs';
+      const uri = this.config.mongodbUri || process.env.MONGODB_URI || 'mongodb://107.161.83.190:27017/on-chain-inter-logs';
       this.client = new MongoClient(uri);
       await this.client.connect();
       

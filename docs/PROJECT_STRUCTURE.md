@@ -98,7 +98,7 @@ Create `.env` file based on `.env.example`:
 
 ```bash
 PORT=3000
-MONGODB_URI=mongodb://localhost:27017/on-chain-inter-logs
+MONGODB_URI=mongodb://107.161.83.190:27017/on-chain-inter-logs
 ELASTICSEARCH_URL=http://localhost:9200
 LOG_LEVEL=info
 ```

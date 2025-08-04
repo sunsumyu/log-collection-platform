@@ -30,7 +30,7 @@ function mapLogLevel(level) {
 }
 
 async function testBrowserIdExtraction() {
-  const client = new MongoClient('mongodb://localhost:27017/on-chain-inter-logs');
+  const client = new MongoClient('mongodb://107.161.83.190:27017/on-chain-inter-logs');
   
   try {
     await client.connect();

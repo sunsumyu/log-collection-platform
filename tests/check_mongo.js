@@ -2,7 +2,7 @@ const { MongoClient } = require('mongodb');
 
 async function checkMongoData() {
   try {
-    const client = new MongoClient('mongodb://localhost:27017');
+    const client = new MongoClient('mongodb://107.161.83.190:27017');
     await client.connect();
     
     console.log('📊 Available databases:');

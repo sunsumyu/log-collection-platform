@@ -355,7 +355,7 @@ export class ElasticsearchService {
     return this.connected;
   }
 
-  async connect(): Promise<void> {
+  async connect(): Promise<void> { 
     try {
       await this.client.get('/');
       this.connected = true;
